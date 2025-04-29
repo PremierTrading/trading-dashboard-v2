@@ -1,0 +1,9 @@
+/* FILE: src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Optional: smooth dark/light transitions */
+html {
+  transition: background-color 0.3s, color 0.3s;
+}
