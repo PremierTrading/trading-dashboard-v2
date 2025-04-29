@@ -12,7 +12,7 @@
     "react-dom": "^18.2.0",
     "recharts": "^2.5.0",
     "papaparse": "^5.4.1",
-    "vite": "^5.0.10"   // <<<<<<<<<< NOTE: vite here!!
+    "vite": "^5.0.10"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.14",
