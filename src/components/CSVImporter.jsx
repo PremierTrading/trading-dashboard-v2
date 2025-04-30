@@ -23,36 +23,36 @@ export default function CSVImporter({ setTrades }) {
     // 1) Detect CSV type and header row
     let account = 'Imported';
     let headerIdx = 0;
-    let delimiter = ','; // default comma
+    let delimiter = ',';
 
-    // Look for TOS Account Trade History header: Exec Time ... Net Price
+    // Detect TOS trade-history section (header starts with "Exec Time" and has "Net Price")
     for (let i = 0; i < lines.length; i++) {
-      let line = lines[i].replace(/^\uFEFF/, '');
+      let line = lines[i].replace(/^﻿/, '');
       if (line.startsWith('Exec Time') && line.includes('Net Price')) {
         account = 'TOS';
         headerIdx = i;
-        // TOS file is tab-delimited
-        delimiter = '\t';
+        delimiter = '	';
         break;
       }
     }
 
-    // If not TOS, detect Tradovate (comma-delimited)
+    // Detect Tradovate export (comma-delimited first line)
     if (account === 'Imported') {
-      const first = lines[0].replace(/^\uFEFF/, '').toLowerCase();
-      if (first.startsWith('orderid,')) {
+      const first = lines[0].replace(/^﻿/, '');
+      if (first.toLowerCase().startsWith('orderid,')) {
         account = 'Tradovate';
         headerIdx = 0;
         delimiter = ',';
       }
     }
 
-    const headerLine = lines[headerIdx].replace(/^\uFEFF/, '');
+    const headerLine = lines[headerIdx].replace(/^﻿/, '');
     setStatus(`Detected ${account} format. Header: ${headerLine}`);
     console.log(`Account type: ${account}, headerIdx: ${headerIdx}, delimiter: '${delimiter}'`);
 
-    // Build CSV string from header onward
-    const csv = lines.slice(headerIdx).join('\n');
+    // Build CSV text from header onward
+    const csv = lines.slice(headerIdx).join('
+'); lines.slice(headerIdx).join('\n');
 
     Papa.parse(csv, {
       header: true,
