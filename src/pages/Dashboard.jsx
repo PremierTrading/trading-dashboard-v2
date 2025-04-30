@@ -11,9 +11,10 @@ import FilterBar from '../components/FilterBar';
 import RiskAnalytics from '../components/RiskAnalytics';
 import WinRateByDay from '../components/WinRateByDay';
 import DarkModeToggle from '../components/DarkModeToggle';
+import './Dashboard.css';
 
 // pull the API base URL from env
-const backendUrl = "https://tradingview-webhook-v2.onrender.com";
+const backendUrl = process.env.REACT_APP_API_BASE || 'https://tradingview-webhook-v2.onrender.com';
 
 export default function Dashboard() {
   const [trades, setTrades] = useState([]);
@@ -28,6 +29,12 @@ export default function Dashboard() {
   const [searchFilters, setSearchFilters] = useState({});
   const [selectedDates, setSelectedDates] = useState([]);
 
+  // Debug: log trades state whenever it changes
+  useEffect(() => {
+    console.log('Dashboard trades state now:', trades);
+  }, [trades]);
+
+  // Fetch trades on login
   useEffect(() => {
     if (!apiKey) {
       setLoading(false);
@@ -41,7 +48,6 @@ export default function Dashboard() {
       const res = await fetch(`${backendUrl}/trades?key=${apiKey}`);
       if (!res.ok) throw new Error('Failed to fetch trades');
       const data = await res.json();
-      // ensure every trade has a timestamp
       const corrected = data.map(t => ({ ...t, timestamp: t.timestamp || new Date().toISOString() }));
       setTrades(corrected);
     } catch (err) {
@@ -90,8 +96,6 @@ export default function Dashboard() {
     setTags(prev => ({ ...prev, [idx]: newTag }));
     setShowNotesModal(false);
   };
-
-  const handleDatesSelected = dates => setSelectedDates(dates);
 
   const applyFilters = list =>
     list.filter(trade => {
@@ -150,7 +154,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-4">
-      {/* HEADER */}  
+      {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Trading Dashboard V2</h1>
         <div className="flex items-center gap-2">
@@ -188,7 +192,7 @@ export default function Dashboard() {
 
       {/* CALENDAR */}
       <div className="my-6">
-        <Calendar onDatesSelected={handleDatesSelected} />
+        <Calendar onDatesSelected={setSelectedDates} />
       </div>
 
       {/* RISK & WIN-RATE */}

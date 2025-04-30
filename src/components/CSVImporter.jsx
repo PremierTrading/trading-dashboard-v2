@@ -1,71 +1,52 @@
 // FILE: src/components/CSVImporter.jsx
 import React from 'react';
 import Papa from 'papaparse';
+import './CSVImporter.css';
 
 export default function CSVImporter({ setTrades }) {
-  const handleFileUpload = (e) => {
+  const handleFileUpload = e => {
     const file = e.target.files[0];
     if (!file) return;
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      complete: (results) => {
+      complete: results => {
+        console.log('Fields detected:', results.meta.fields);
         console.log('Parsed CSV:', results.data);
 
-        // Detect if this is a ThinkOrSwim CSV
+        // Determine CSV format (TOS vs generic)
         const isTOS = results.meta.fields.includes('Net P&L') && results.meta.fields.includes('Symbol');
 
-        const mappedTrades = results.data.map((row) => {
-          try {
-            const symbol = row.Symbol || row.symbol || row['Underlying Symbol'] || row['Ticker'] || '';
-            const pnl = parseFloat(row["Net P&L"] || row.pnl || row['Profit/Loss'] || row['P&L'] || 0);
-            const date = row['Trade Date'] || row.Date || row['Execution Date'] || '';
-            const time = row['Executed Time'] || row.Time || '';
-
-            let timestamp = '';
-            if (date && time) {
-              timestamp = new Date(`${date} ${time}`).toISOString();
-            } else if (date) {
-              timestamp = new Date(date).toISOString();
-            }
+        const mapped = results.data
+          .map(row => {
+            const symbol = row.Symbol || row.symbol || row['Underlying Symbol'] || row.Ticker || '';
+            const pnlRaw = row['Net P&L'] || row.pnl || row['Profit/Loss'] || row['P&L'];
+            const pnl = pnlRaw !== undefined ? parseFloat(pnlRaw) : NaN;
+            const dateStr = row.DateTime || row['Trade Date'];
+            const timeStr = row['Executed Time'] || row.Time;
+            const dt = dateStr && timeStr ? `${dateStr} ${timeStr}` : dateStr || '';
+            const timestamp = dt ? new Date(dt).toISOString() : null;
 
             if (!symbol || isNaN(pnl) || !timestamp) {
-              console.warn('Invalid row skipped:', row);
+              console.warn('Skipping invalid row:', row);
               return null;
             }
+            return { symbol, pnl, timestamp, account: row.Account || (isTOS ? 'ThinkOrSwim' : 'Imported') };
+          })
+          .filter(Boolean);
 
-            return {
-              symbol,
-              pnl,
-              timestamp,
-              account: isTOS ? "ThinkOrSwim" : "Other", // <-- Auto-detect broker
-            };
-          } catch (error) {
-            console.error('Error parsing row:', row);
-            return null;
-          }
-        }).filter(row => row !== null);
-
-        console.log('Mapped Trades:', mappedTrades);
-
-        // Inject parsed trades into your dashboard
-        setTrades(prev => [...prev, ...mappedTrades]);
-      }
+        console.log('Mapped Trades:', mapped);
+        setTrades(prev => [...prev, ...mapped]);
+      },
+      error: err => console.error('Error parsing CSV:', err)
     });
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <label className="bg-primary hover:bg-green-700 text-white font-bold py-2 px-4 rounded cursor-pointer">
-        Import CSV
-        <input
-          type="file"
-          accept=".csv"
-          onChange={handleFileUpload}
-          className="hidden"
-        />
-      </label>
-    </div>
+    <label className="bg-primary hover:bg-green-700 text-white font-bold py-2 px-4 rounded cursor-pointer">
+      Import CSV
+      <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
+    </label>
   );
 }
