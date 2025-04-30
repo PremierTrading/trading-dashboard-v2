@@ -5,6 +5,13 @@ import Papa from 'papaparse';
 export default function CSVImporter({ setTrades }) {
   const [status, setStatus] = useState('');
 
+  const parseNumber = str => {
+    if (typeof str !== 'string') return NaN;
+    // remove quotes, commas
+    const cleaned = str.replace(/"/g, '').replace(/,/g, '');
+    return parseFloat(cleaned);
+  };
+
   const handleFileUpload = async e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -14,13 +21,13 @@ export default function CSVImporter({ setTrades }) {
     let account = 'Imported';
     let dataLines = lines;
 
-    // Detect TOS export (header starts "DATE,")
-    const tosIdx = lines.findIndex(l => l.startsWith('DATE,'));
-    if (tosIdx >= 0) {
+    // Detect ThinkOrSwim export (header contains AMOUNT,BALANCE)
+    const tosHeaderIdx = lines.findIndex(l => l.match(/^DATE,.*AMOUNT,.*BALANCE/));
+    if (tosHeaderIdx >= 0) {
       account = 'TOS';
-      dataLines = lines.slice(tosIdx);
+      dataLines = lines.slice(tosHeaderIdx);
     }
-    // Detect Tradovate export (header starts "orderId,")
+    // Detect Tradovate export (header starts with "orderId,")
     else if (lines[0].toLowerCase().startsWith('orderid,')) {
       account = 'Tradovate';
     }
@@ -29,43 +36,42 @@ export default function CSVImporter({ setTrades }) {
     Papa.parse(csv, {
       header: true,
       skipEmptyLines: true,
-      complete: r => {
-        const mapped = r.data
+      complete: result => {
+        const mapped = result.data
           .map(row => {
             let symbol, pnl, ts;
 
             if (account === 'TOS') {
               symbol = row.DESCRIPTION;
-              pnl = parseFloat(row.AMOUNT);
-              ts =
-                row.DATE && row.TIME
-                  ? new Date(row.DATE + ' ' + row.TIME).toISOString()
-                  : new Date().toISOString();
+              pnl = parseNumber(row.AMOUNT);
+              const date = row.DATE;
+              const time = row.TIME;
+              ts = date && time ? new Date(`${date} ${time}`).toISOString() : new Date().toISOString();
             } else if (account === 'Tradovate') {
               symbol = row.Contract;
-              pnl = 0;
+              pnl = parseNumber(row.ProfitLoss) || 0;
               ts = new Date().toISOString();
             } else {
               symbol = row.Symbol || row.Ticker || '';
-              pnl = parseFloat(row['Net P&L'] || 0);
+              pnl = parseNumber(row['Net P&L']) || 0;
               ts = new Date().toISOString();
             }
 
             if (!symbol || isNaN(pnl)) return null;
-            return {
-              symbol,
-              pnl,
-              profitLoss: pnl,
-              profit: pnl,
-              netPnl: pnl,
-              timestamp: ts,
-              account
-            };
+
+            // Synthesize required fields for stats & cards
+            const profitLoss = pnl;
+            const entryPrice = 0;
+            const exitPrice = 0;
+            const quantity = 0;
+            const direction = pnl >= 0 ? 'Long' : 'Short';
+
+            return { symbol, pnl, profitLoss, entryPrice, exitPrice, quantity, direction, timestamp: ts, account };
           })
           .filter(Boolean);
 
         setTrades(prev => [...prev, ...mapped]);
-        setStatus(`${mapped.length} imported, ${r.data.length - mapped.length} skipped`);
+        setStatus(`${mapped.length} imported, ${result.data.length - mapped.length} skipped`);
       },
       error: err => {
         console.error('Error parsing CSV:', err);
