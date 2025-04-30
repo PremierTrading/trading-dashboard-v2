@@ -25,8 +25,8 @@ export default function Calendar({ onDatesSelected }) {
   const selectThisWeek = () => {
     const today = new Date();
     const days = eachDayOfInterval({
-      start: startOfWeek(today, { weekStartsOn: 0 }), // Sunday
-      end: endOfWeek(today, { weekStartsOn: 0 }),
+      start: startOfWeek(today, { weekStartsOn: 0 }),
+      end: endOfWeek(today,   { weekStartsOn: 0 }),
     });
     setSelectedDays(days);
     if (onDatesSelected) onDatesSelected(days);
@@ -35,11 +35,8 @@ export default function Calendar({ onDatesSelected }) {
   const selectLastWeek = () => {
     const today = new Date();
     const lastWeekStart = startOfWeek(subWeeks(today, 1), { weekStartsOn: 0 });
-    const lastWeekEnd = endOfWeek(subWeeks(today, 1), { weekStartsOn: 0 });
-    const days = eachDayOfInterval({
-      start: lastWeekStart,
-      end: lastWeekEnd,
-    });
+    const lastWeekEnd   = endOfWeek(  subWeeks(today, 1), { weekStartsOn: 0 });
+    const days = eachDayOfInterval({ start: lastWeekStart, end: lastWeekEnd });
     setSelectedDays(days);
     if (onDatesSelected) onDatesSelected(days);
   };
@@ -48,7 +45,7 @@ export default function Calendar({ onDatesSelected }) {
     const today = new Date();
     const days = eachDayOfInterval({
       start: startOfMonth(today),
-      end: today, // up to today, not full month
+      end:   today,
     });
     setSelectedDays(days);
     if (onDatesSelected) onDatesSelected(days);
@@ -59,7 +56,7 @@ export default function Calendar({ onDatesSelected }) {
     const lastMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const days = eachDayOfInterval({
       start: startOfMonth(lastMonthDate),
-      end: endOfMonth(lastMonthDate),
+      end:   endOfMonth(lastMonthDate),
     });
     setSelectedDays(days);
     if (onDatesSelected) onDatesSelected(days);
@@ -69,7 +66,7 @@ export default function Calendar({ onDatesSelected }) {
     const today = new Date();
     const days = eachDayOfInterval({
       start: startOfYear(today),
-      end: today,
+      end:   today,
     });
     setSelectedDays(days);
     if (onDatesSelected) onDatesSelected(days);
@@ -85,40 +82,28 @@ export default function Calendar({ onDatesSelected }) {
       <h2 className="text-xl font-bold mb-4">Select Trading Days</h2>
 
       <div className="flex flex-wrap gap-2 mb-4">
-        <button
-          onClick={selectThisWeek}
-          className="bg-primary text-white px-3 py-1 rounded hover:bg-green-700 transition"
-        >
+        <button onClick={selectThisWeek}
+                className="bg-primary text-white px-3 py-1 rounded hover:bg-green-700 transition">
           This Week
         </button>
-        <button
-          onClick={selectLastWeek}
-          className="bg-primary text-white px-3 py-1 rounded hover:bg-green-700 transition"
-        >
+        <button onClick={selectLastWeek}
+                className="bg-primary text-white px-3 py-1 rounded hover:bg-green-700 transition">
           Last Week
         </button>
-        <button
-          onClick={selectThisMonth}
-          className="bg-primary text-white px-3 py-1 rounded hover:bg-green-700 transition"
-        >
+        <button onClick={selectThisMonth}
+                className="bg-primary text-white px-3 py-1 rounded hover:bg-green-700 transition">
           This Month
         </button>
-        <button
-          onClick={selectLastMonth}
-          className="bg-primary text-white px-3 py-1 rounded hover:bg-green-700 transition"
-        >
+        <button onClick={selectLastMonth}
+                className="bg-primary text-white px-3 py-1 rounded hover:bg-green-700 transition">
           Last Month
         </button>
-        <button
-          onClick={selectYearToDate}
-          className="bg-primary text-white px-3 py-1 rounded hover:bg-green-700 transition"
-        >
+        <button onClick={selectYearToDate}
+                className="bg-primary text-white px-3 py-1 rounded hover:bg-green-700 transition">
           Year-to-Date
         </button>
-        <button
-          onClick={clearSelection}
-          className="bg-gray-400 text-white px-3 py-1 rounded hover:bg-gray-600 transition"
-        >
+        <button onClick={clearSelection}
+                className="bg-gray-400 text-white px-3 py-1 rounded hover:bg-gray-600 transition">
           Clear
         </button>
       </div>
