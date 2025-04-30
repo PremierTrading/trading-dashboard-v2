@@ -1,3 +1,4 @@
+// FILE: src/pages/Dashboard.jsx
 import React, { useEffect, useState } from 'react';
 import TradeCard from '../components/TradeCard';
 import Calendar from '../components/Calendar';
@@ -11,7 +12,8 @@ import RiskAnalytics from '../components/RiskAnalytics';
 import WinRateByDay from '../components/WinRateByDay';
 import DarkModeToggle from '../components/DarkModeToggle';
 
-const backendUrl = "https://tradingview-webhook-7lbp.onrender.com";
+// pull the API base URL from env
+const backendUrl = "https://tradingview-webhook-v2.onrender.com";
 
 export default function Dashboard() {
   const [trades, setTrades] = useState([]);
@@ -36,40 +38,36 @@ export default function Dashboard() {
 
   const fetchTrades = async () => {
     try {
-      const response = await fetch(`${backendUrl}/trades?key=${apiKey}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch trades');
-      }
-      const data = await response.json();
-      const correctedData = data.map(trade => ({
-        ...trade,
-        timestamp: trade.timestamp || new Date().toISOString(),
-      }));
-      setTrades(correctedData);
-    } catch (error) {
-      console.error('Error fetching trades:', error);
+      const res = await fetch(`${backendUrl}/trades?key=${apiKey}`);
+      if (!res.ok) throw new Error('Failed to fetch trades');
+      const data = await res.json();
+      // ensure every trade has a timestamp
+      const corrected = data.map(t => ({ ...t, timestamp: t.timestamp || new Date().toISOString() }));
+      setTrades(corrected);
+    } catch (err) {
+      console.error('Error fetching trades:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogin = async (e) => {
+  const handleLogin = async e => {
     e.preventDefault();
     try {
-      const response = await fetch(`${backendUrl}/login`, {
+      const res = await fetch(`${backendUrl}/login`, {
         method: 'POST',
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
       });
-      const data = await response.json();
-      if (response.ok) {
+      const data = await res.json();
+      if (res.ok) {
         localStorage.setItem('apiKey', data.api_key);
         setApiKey(data.api_key);
       } else {
-        alert(data.error || "Login failed");
+        alert(data.error || 'Login failed');
       }
-    } catch (error) {
-      console.error('Login error:', error);
+    } catch (err) {
+      console.error('Login error:', err);
       alert('Login failed. Try again.');
     }
   };
@@ -82,34 +80,42 @@ export default function Dashboard() {
     setTags({});
   };
 
-  const openNotes = (index) => {
-    setSelectedTradeIndex(index);
+  const openNotes = idx => {
+    setSelectedTradeIndex(idx);
     setShowNotesModal(true);
   };
 
-  const saveNotes = (index, newNote, newTag) => {
-    setNotes((prev) => ({ ...prev, [index]: newNote }));
-    setTags((prev) => ({ ...prev, [index]: newTag }));
+  const saveNotes = (idx, newNote, newTag) => {
+    setNotes(prev => ({ ...prev, [idx]: newNote }));
+    setTags(prev => ({ ...prev, [idx]: newTag }));
     setShowNotesModal(false);
   };
 
-  const handleDatesSelected = (dates) => {
-    setSelectedDates(dates);
-  };
+  const handleDatesSelected = dates => setSelectedDates(dates);
 
-  const applyFilters = (tradesToFilter) => {
-    return tradesToFilter.filter(trade => {
-      const symbolMatch = searchFilters.symbol ? (trade.symbol || "").toLowerCase().includes(searchFilters.symbol.toLowerCase()) : true;
-      const resultMatch = searchFilters.result ? (searchFilters.result === "win" ? trade.pnl >= 0 : trade.pnl < 0) : true;
-      const tagMatch = searchFilters.tag ? (trade.tag || "").toLowerCase().includes(searchFilters.tag.toLowerCase()) : true;
-      const dateMatch = selectedDates.length > 0 ? selectedDates.some(date => {
-        const tradeDate = new Date(trade.timestamp).toISOString().split('T')[0];
-        const selectedDate = new Date(date).toISOString().split('T')[0];
-        return tradeDate === selectedDate;
-      }) : true;
-      return symbolMatch && resultMatch && tagMatch && dateMatch;
+  const applyFilters = list =>
+    list.filter(trade => {
+      const sym = searchFilters.symbol
+        ? trade.symbol?.toLowerCase().includes(searchFilters.symbol.toLowerCase())
+        : true;
+      const res = searchFilters.result
+        ? searchFilters.result === 'win'
+          ? trade.pnl >= 0
+          : trade.pnl < 0
+        : true;
+      const tagM = searchFilters.tag
+        ? trade.tag?.toLowerCase().includes(searchFilters.tag.toLowerCase())
+        : true;
+      const dateM =
+        selectedDates.length > 0
+          ? selectedDates.some(d => {
+              const td = new Date(trade.timestamp).toISOString().split('T')[0];
+              const sd = new Date(d).toISOString().split('T')[0];
+              return td === sd;
+            })
+          : true;
+      return sym && res && tagM && dateM;
     });
-  };
 
   const filteredTrades = applyFilters(trades);
 
@@ -122,7 +128,7 @@ export default function Dashboard() {
             type="email"
             placeholder="Email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={e => setEmail(e.target.value)}
             className="w-full p-2 mb-4 border rounded dark:bg-gray-700"
             required
           />
@@ -130,7 +136,7 @@ export default function Dashboard() {
             type="password"
             placeholder="Password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={e => setPassword(e.target.value)}
             className="w-full p-2 mb-4 border rounded dark:bg-gray-700"
             required
           />
@@ -144,28 +150,25 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-4">
-      {/* HEADER */}
+      {/* HEADER */}  
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Trading Dashboard V2</h1>
         <div className="flex items-center gap-2">
           <DarkModeToggle />
           <button
             onClick={() => {
-              if (window.confirm("Are you sure you want to clear all trades? This cannot be undone.")) {
+              if (window.confirm('Clear all trades? This cannot be undone.')) {
                 setTrades([]);
                 setNotes({});
                 setTags({});
               }
             }}
-            className="bg-yellow-400 hover:bg-yellow-500 text-black px-4 py-2 rounded transition"
+            className="bg-yellow-400 hover:bg-yellow-500 text-black px-4 py-2 rounded"
           >
             Clear Trades
           </button>
           <CSVImporter setTrades={setTrades} />
-          <button
-            onClick={handleLogout}
-            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition"
-          >
+          <button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">
             Logout
           </button>
         </div>
@@ -188,36 +191,30 @@ export default function Dashboard() {
         <Calendar onDatesSelected={handleDatesSelected} />
       </div>
 
-      {/* RISK ANALYTICS */}
+      {/* RISK & WIN-RATE */}
       <RiskAnalytics trades={filteredTrades} />
-
-      {/* WIN RATE ANALYTICS */}
       <WinRateByDay trades={filteredTrades} />
 
-      {/* TRADES */}
+      {/* TRADES GRID */}
       {loading ? (
         <div className="text-center">Loading...</div>
       ) : filteredTrades.length === 0 ? (
         <div className="text-center">No trades found.</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredTrades.map((trade, index) => (
-            <TradeCard
-              key={index}
-              trade={{ ...trade, note: notes[index], tag: tags[index] }}
-              onNote={() => openNotes(index)}
-            />
+          {filteredTrades.map((trade, i) => (
+            <TradeCard key={i} trade={{ ...trade, note: notes[i], tag: tags[i] }} onNote={() => openNotes(i)} />
           ))}
         </div>
       )}
 
       {/* NOTES MODAL */}
-      {showNotesModal && selectedTradeIndex !== null && (
+      {showNotesModal && selectedTradeIndex != null && (
         <NotesModal
           trade={filteredTrades[selectedTradeIndex]}
           note={notes[selectedTradeIndex]}
           tag={tags[selectedTradeIndex]}
-          onSave={(newNote, newTag) => saveNotes(selectedTradeIndex, newNote, newTag)}
+          onSave={(n, t) => saveNotes(selectedTradeIndex, n, t)}
           onClose={() => setShowNotesModal(false)}
         />
       )}
