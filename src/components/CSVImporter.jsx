@@ -9,13 +9,12 @@ export default function CSVImporter({ setTrades }) {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Read entire file to detect format
     const text = await file.text();
     const lines = text.split(/\r?\n/);
     let account = 'Imported';
     let dataLines = lines;
 
-    // Detect ThinkOrSwim export (header starts "DATE,")
+    // Detect TOS export (header starts "DATE,")
     const tosIdx = lines.findIndex(l => l.startsWith('DATE,'));
     if (tosIdx >= 0) {
       account = 'TOS';
@@ -53,7 +52,15 @@ export default function CSVImporter({ setTrades }) {
             }
 
             if (!symbol || isNaN(pnl)) return null;
-            return { symbol, pnl, timestamp: ts, account };
+            return {
+              symbol,
+              pnl,
+              profitLoss: pnl,
+              profit: pnl,
+              netPnl: pnl,
+              timestamp: ts,
+              account
+            };
           })
           .filter(Boolean);
 

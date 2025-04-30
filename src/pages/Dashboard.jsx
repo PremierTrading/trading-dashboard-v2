@@ -69,7 +69,6 @@ export default function Dashboard() {
     setTrades([]);
   };
 
-  // Login screen
   if (!apiKey) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -99,7 +98,6 @@ export default function Dashboard() {
     );
   }
 
-  // Main dashboard
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
