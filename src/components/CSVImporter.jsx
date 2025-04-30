@@ -14,31 +14,37 @@ export default function CSVImporter({ setTrades }) {
     const file = e.target.files[0];
     if (!file) return;
 
+    setStatus('Reading file...');
     const text = await file.text();
     const lines = text.split(/\r?\n/);
 
-    // Detect CSV type
+    console.log('First 10 lines of CSV:', lines.slice(0, 10));
+
+    // Detect CSV type and header row, handle BOM
     let account = 'Imported';
     let headerIdx = 0;
-
-    // Look for TOS header: a line starting with DATE, and containing AMOUNT and BALANCE
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (line.toUpperCase().startsWith('DATE,') && /AMOUNT,/.test(line) && /BALANCE/.test(line)) {
+      let line = lines[i];
+      // remove BOM if present
+      if (i === 0) line = line.replace(/^\uFEFF/, '');
+      const up = line.toUpperCase();
+      if (up.startsWith('DATE,') && /AMOUNT,/.test(up) && /BALANCE/.test(up)) {
         account = 'TOS';
         headerIdx = i;
         break;
       }
     }
-
-    // If not TOS, check for Tradovate header at first line
-    if (account === 'Imported' && lines[0].toLowerCase().startsWith('orderid,')) {
-      account = 'Tradovate';
-      headerIdx = 0;
+    if (account === 'Imported') {
+      const first = lines[0].replace(/^\uFEFF/, '').toLowerCase();
+      if (first.startsWith('orderid,')) {
+        account = 'Tradovate';
+        headerIdx = 0;
+      }
     }
 
-    console.log('CSV account type detected:', account);
-    console.log('Header row:', lines[headerIdx]);
+    const headerLine = (lines[headerIdx] || '').replace(/^\uFEFF/, '');
+    setStatus(`Detected ${account} format. Header: ${headerLine}`);
+    console.log(`Detected account type: ${account} at header index ${headerIdx}`);
 
     const dataLines = lines.slice(headerIdx);
     const csv = dataLines.join('\n');
@@ -47,17 +53,23 @@ export default function CSVImporter({ setTrades }) {
       header: true,
       skipEmptyLines: true,
       complete: result => {
+        console.log('Parsed rows count:', result.data.length);
         console.log('Fields detected:', result.meta.fields);
-        console.log('Parsed rows:', result.data.length);
+
+        if (!result.data.length) {
+          setStatus('No data rows parsed. Check header detection.');
+          return;
+        }
 
         const mapped = result.data
           .map(row => {
             let symbol, pnl, ts;
-
             if (account === 'TOS') {
               symbol = row.DESCRIPTION;
               pnl = parseNumber(row.AMOUNT);
-              ts = row.DATE && row.TIME ? new Date(`${row.DATE} ${row.TIME}`).toISOString() : new Date().toISOString();
+              const date = row.DATE;
+              const time = row.TIME;
+              ts = date && time ? new Date(`${date} ${time}`).toISOString() : new Date().toISOString();
             } else if (account === 'Tradovate') {
               symbol = row.Contract;
               pnl = parseNumber(row.ProfitLoss) || 0;
@@ -67,18 +79,12 @@ export default function CSVImporter({ setTrades }) {
               pnl = parseNumber(row['Net P&L']) || 0;
               ts = new Date().toISOString();
             }
-
-            if (!symbol || isNaN(pnl)) {
-              console.warn(`Skipping invalid row for ${account}:`, row);
-              return null;
-            }
-
+            if (!symbol || isNaN(pnl)) return null;
             const profitLoss = pnl;
             const entryPrice = 0;
             const exitPrice = 0;
             const quantity = 0;
             const direction = pnl >= 0 ? 'Long' : 'Short';
-
             return { symbol, pnl, profitLoss, entryPrice, exitPrice, quantity, direction, timestamp: ts, account };
           })
           .filter(Boolean);
