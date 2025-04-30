@@ -6,10 +6,8 @@ export default function CSVImporter({ setTrades }) {
   const [status, setStatus] = useState('');
 
   const parseNumber = str => {
-    if (typeof str !== 'string') return NaN;
-    // remove quotes, commas
-    const cleaned = str.replace(/"/g, '').replace(/,/g, '');
-    return parseFloat(cleaned);
+    if (!str && str !== 0) return NaN;
+    return parseFloat(String(str).replace(/"|,/g, ''));
   };
 
   const handleFileUpload = async e => {
@@ -18,25 +16,40 @@ export default function CSVImporter({ setTrades }) {
 
     const text = await file.text();
     const lines = text.split(/\r?\n/);
+
+    // Detect CSV type
     let account = 'Imported';
-    let dataLines = lines;
+    let headerIdx = 0;
 
-    // Detect ThinkOrSwim export (header contains AMOUNT,BALANCE)
-    const tosHeaderIdx = lines.findIndex(l => l.match(/^DATE,.*AMOUNT,.*BALANCE/));
-    if (tosHeaderIdx >= 0) {
-      account = 'TOS';
-      dataLines = lines.slice(tosHeaderIdx);
+    // Look for TOS header: a line starting with DATE, and containing AMOUNT and BALANCE
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.toUpperCase().startsWith('DATE,') && /AMOUNT,/.test(line) && /BALANCE/.test(line)) {
+        account = 'TOS';
+        headerIdx = i;
+        break;
+      }
     }
-    // Detect Tradovate export (header starts with "orderId,")
-    else if (lines[0].toLowerCase().startsWith('orderid,')) {
+
+    // If not TOS, check for Tradovate header at first line
+    if (account === 'Imported' && lines[0].toLowerCase().startsWith('orderid,')) {
       account = 'Tradovate';
+      headerIdx = 0;
     }
 
+    console.log('CSV account type detected:', account);
+    console.log('Header row:', lines[headerIdx]);
+
+    const dataLines = lines.slice(headerIdx);
     const csv = dataLines.join('\n');
+
     Papa.parse(csv, {
       header: true,
       skipEmptyLines: true,
       complete: result => {
+        console.log('Fields detected:', result.meta.fields);
+        console.log('Parsed rows:', result.data.length);
+
         const mapped = result.data
           .map(row => {
             let symbol, pnl, ts;
@@ -44,9 +57,7 @@ export default function CSVImporter({ setTrades }) {
             if (account === 'TOS') {
               symbol = row.DESCRIPTION;
               pnl = parseNumber(row.AMOUNT);
-              const date = row.DATE;
-              const time = row.TIME;
-              ts = date && time ? new Date(`${date} ${time}`).toISOString() : new Date().toISOString();
+              ts = row.DATE && row.TIME ? new Date(`${row.DATE} ${row.TIME}`).toISOString() : new Date().toISOString();
             } else if (account === 'Tradovate') {
               symbol = row.Contract;
               pnl = parseNumber(row.ProfitLoss) || 0;
@@ -57,9 +68,11 @@ export default function CSVImporter({ setTrades }) {
               ts = new Date().toISOString();
             }
 
-            if (!symbol || isNaN(pnl)) return null;
+            if (!symbol || isNaN(pnl)) {
+              console.warn(`Skipping invalid row for ${account}:`, row);
+              return null;
+            }
 
-            // Synthesize required fields for stats & cards
             const profitLoss = pnl;
             const entryPrice = 0;
             const exitPrice = 0;
@@ -70,6 +83,7 @@ export default function CSVImporter({ setTrades }) {
           })
           .filter(Boolean);
 
+        console.log('Mapped trades count:', mapped.length);
         setTrades(prev => [...prev, ...mapped]);
         setStatus(`${mapped.length} imported, ${result.data.length - mapped.length} skipped`);
       },
@@ -86,7 +100,7 @@ export default function CSVImporter({ setTrades }) {
         Import CSV
         <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
       </label>
-      {status && <div className="mt-1 text-sm">{status}</div>}
+      {status && <div className="mt-1 text-sm text-gray-700">{status}</div>}
     </div>
   );
 }
